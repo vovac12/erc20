@@ -1,0 +1,80 @@
+[package]
+name = "pallet-erc20"
+version = "0.1.0"
+edition = "2018"
+
+[package.metadata.docs.rs]
+targets = ['x86_64-unknown-linux-gnu']
+
+[dev-dependencies.serde]
+version = '1.0.119'
+
+[dev-dependencies.sp-core]
+default-features = false
+version = '3.0.0'
+git = 'https://github.com/paritytech/substrate.git'
+tag = 'monthly-2021-07'
+
+[dev-dependencies.sp-io]
+default-features = false
+version = '3.0.0'
+git = 'https://github.com/paritytech/substrate.git'
+tag = 'monthly-2021-07'
+
+[dev-dependencies.sp-runtime]
+default-features = false
+version = '3.0.0'
+git = 'https://github.com/paritytech/substrate.git'
+tag = 'monthly-2021-07'
+
+[features]
+default = ['std']
+runtime-benchmarks = [
+    'frame-benchmarking',
+    'pallet-balances/runtime-benchmarks',
+]
+std = [
+    'codec/std',
+    'frame-support/std',
+    'frame-system/std',
+    'frame-benchmarking/std',
+    'pallet-balances/std',
+]
+try-runtime = ['frame-support/try-runtime']
+
+[dependencies.codec]
+default-features = false
+features = ['derive']
+package = 'parity-scale-codec'
+version = '2.0.0'
+
+[dependencies.frame-benchmarking]
+default-features = false
+optional = true
+version = '3.1.0'
+git = 'https://github.com/paritytech/substrate.git'
+tag = 'monthly-2021-07'
+
+[dependencies.frame-support]
+default-features = false
+version = '3.0.0'
+git = 'https://github.com/paritytech/substrate.git'
+tag = 'monthly-2021-07'
+
+[dependencies.frame-system]
+default-features = false
+version = '3.0.0'
+git = 'https://github.com/paritytech/substrate.git'
+tag = 'monthly-2021-07'
+
+[dependencies.sp-std]
+version = '3.0.0'
+default-features = false
+git = 'https://github.com/paritytech/substrate.git'
+tag = 'monthly-2021-07'
+
+[dependencies.pallet-balances]
+default-features = false
+version = '3.0.0'
+git = 'https://github.com/paritytech/substrate.git'
+tag = 'monthly-2021-07'
