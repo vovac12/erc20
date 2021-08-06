@@ -59,6 +59,7 @@ impl system::Config for Test {
 impl erc20::Config for Test {
     type Event = Event;
     type Currency = Balances;
+    type WeightInfo = crate::weights::SubstrateWeight<Test>;
 }
 
 parameter_types! {

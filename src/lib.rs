@@ -9,12 +9,15 @@ mod tests;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 
+pub mod weights;
+
 pub(crate) mod prelude {}
 
 pub use pallet::*;
 
 #[frame_support::pallet]
 pub mod pallet {
+    pub use super::weights::WeightInfo;
     use frame_support::{
         pallet_prelude::*,
         sp_runtime::traits::StaticLookup,
@@ -25,11 +28,14 @@ pub mod pallet {
 
     pub(crate) type BalanceOf<T> =
         <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
+    pub(crate) type LookupAddress<T> =
+        <<T as frame_system::Config>::Lookup as StaticLookup>::Source;
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
         type Currency: Currency<Self::AccountId>;
+        type WeightInfo: WeightInfo;
     }
 
     #[pallet::event]
@@ -65,7 +71,11 @@ pub mod pallet {
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
     impl<T: Config> Pallet<T> {
-        fn set_allowance(owner: T::AccountId, sender: T::AccountId, count: BalanceOf<T>) {
+        pub(crate) fn set_allowance(
+            owner: T::AccountId,
+            sender: T::AccountId,
+            count: BalanceOf<T>,
+        ) {
             <Allowances<T>>::insert(owner.clone(), sender.clone(), count);
             Self::deposit_event(Event::AllowanceChanged(owner, sender, count));
         }
@@ -73,10 +83,10 @@ pub mod pallet {
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
-        #[pallet::weight(1_000)]
+        #[pallet::weight(T::WeightInfo::approve())]
         pub fn approve(
             owner: OriginFor<T>,
-            sender: <T::Lookup as StaticLookup>::Source,
+            sender: LookupAddress<T>,
             count: BalanceOf<T>,
         ) -> DispatchResultWithPostInfo {
             let owner = ensure_signed(owner)?;
@@ -85,11 +95,11 @@ pub mod pallet {
             Ok(().into())
         }
 
-        #[pallet::weight(1_000)]
+        #[pallet::weight(T::WeightInfo::transfer_from())]
         pub fn transfer_from(
             origin: OriginFor<T>,
-            src: <T::Lookup as StaticLookup>::Source,
-            dst: <T::Lookup as StaticLookup>::Source,
+            src: LookupAddress<T>,
+            dst: LookupAddress<T>,
             #[pallet::compact] count: BalanceOf<T>,
         ) -> DispatchResultWithPostInfo {
             let origin = ensure_signed(origin)?;
@@ -106,10 +116,10 @@ pub mod pallet {
             Ok(().into())
         }
 
-        #[pallet::weight(1_000)]
+        #[pallet::weight(T::WeightInfo::increase_allowance())]
         pub fn increase_allowance(
             origin: OriginFor<T>,
-            sender: <T::Lookup as StaticLookup>::Source,
+            sender: LookupAddress<T>,
             count: BalanceOf<T>,
         ) -> DispatchResultWithPostInfo {
             let owner = ensure_signed(origin)?;
@@ -119,10 +129,10 @@ pub mod pallet {
             Ok(().into())
         }
 
-        #[pallet::weight(1_000)]
+        #[pallet::weight(T::WeightInfo::decrease_allowance())]
         pub fn decrease_allowance(
             owner: OriginFor<T>,
-            sender: <T::Lookup as StaticLookup>::Source,
+            sender: LookupAddress<T>,
             count: BalanceOf<T>,
         ) -> DispatchResultWithPostInfo {
             let owner = ensure_signed(owner)?;
