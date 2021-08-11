@@ -20,7 +20,10 @@ pub mod pallet {
     pub use super::weights::WeightInfo;
     use frame_support::{
         pallet_prelude::*,
-        sp_runtime::traits::StaticLookup,
+        sp_runtime::{
+            traits::{CheckedAdd, CheckedSub, StaticLookup},
+            ArithmeticError,
+        },
         traits::{Currency, ExistenceRequirement},
     };
     use frame_system::pallet_prelude::*;
@@ -79,6 +82,14 @@ pub mod pallet {
             <Allowances<T>>::insert(owner.clone(), sender.clone(), count);
             Self::deposit_event(Event::AllowanceChanged(owner, sender, count));
         }
+
+        fn set_allowance_with<F>(owner: T::AccountId, sender: T::AccountId, f: F) -> DispatchResult
+        where
+            F: FnOnce(&mut BalanceOf<T>) -> DispatchResult,
+        {
+            <Allowances<T>>::try_mutate(&owner, &sender, f)?;
+            Ok(())
+        }
     }
 
     #[pallet::call]
@@ -105,14 +116,17 @@ pub mod pallet {
             let origin = ensure_signed(origin)?;
             let src = T::Lookup::lookup(src)?;
             let dst = T::Lookup::lookup(dst)?;
-            let allowance = Self::get_allowance(&src, &origin);
-            ensure!(allowance >= count, Error::<T>::NotEnoughAllowance);
+            Self::set_allowance_with(src.clone(), origin, |allowance| {
+                ensure!(*allowance >= count, Error::<T>::NotEnoughAllowance);
 
-            T::Currency::transfer(&src, &dst, count, ExistenceRequirement::KeepAlive)?;
+                T::Currency::transfer(&src, &dst, count, ExistenceRequirement::KeepAlive)?;
 
-            let result_allowance = allowance - count;
-            Self::set_allowance(src.clone(), origin.clone(), result_allowance);
-
+                let result_allowance = allowance
+                    .checked_sub(&count)
+                    .ok_or_else(|| ArithmeticError::Underflow)?;
+                *allowance = result_allowance;
+                Ok(())
+            })?;
             Ok(().into())
         }
 
@@ -124,8 +138,12 @@ pub mod pallet {
         ) -> DispatchResultWithPostInfo {
             let owner = ensure_signed(origin)?;
             let sender = T::Lookup::lookup(sender)?;
-            let new_allowance = Self::get_allowance(&owner, &sender) + count;
-            Self::set_allowance(owner, sender, new_allowance);
+            Self::set_allowance_with(owner, sender, |allowance| -> DispatchResult {
+                *allowance = allowance
+                    .checked_add(&count)
+                    .ok_or_else(|| ArithmeticError::Overflow)?;
+                Ok(())
+            })?;
             Ok(().into())
         }
 
@@ -137,10 +155,12 @@ pub mod pallet {
         ) -> DispatchResultWithPostInfo {
             let owner = ensure_signed(owner)?;
             let sender = T::Lookup::lookup(sender)?;
-            let allowance = Self::get_allowance(&owner, &sender);
-            ensure!(allowance >= count, Error::<T>::DecreasedAllowanceBelowZero);
-            let new_allowance = allowance - count;
-            Self::set_allowance(owner, sender, new_allowance);
+            Self::set_allowance_with(owner, sender, |allowance| -> DispatchResult {
+                *allowance = allowance
+                    .checked_sub(&count)
+                    .ok_or_else(|| Error::<T>::DecreasedAllowanceBelowZero)?;
+                Ok(())
+            })?;
             Ok(().into())
         }
     }
